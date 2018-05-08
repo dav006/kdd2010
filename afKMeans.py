@@ -41,7 +41,8 @@ def read_datashop_student_step(step_file, model_id=None):
     item_label = []
     mydict = {}
     clf = joblib.load('kcsKmeans.pkl')
-    vectorizer = joblib.load('vectorizer.pkl') 
+    vectorizer = joblib.load('vectorizer.pkl')
+    labelToCentroid = {}
 
     for line in step_file:
         data = line.rstrip().split('\t')
@@ -62,7 +63,12 @@ def read_datashop_student_step(step_file, model_id=None):
             kcs.append({kc: 1 for kc in steps})
             opps.append({kc: int(mydict[student+kc]) for i,kc in enumerate(kc_labels)})
         else:
-            kc_labels = [clf.predict(vectorizer.transform([kc]))[0] for kc in data[header[model]].split("~~") if kc != ""]
+            kc_labels = []
+
+            for kc in data[header[model]].split("~~"):
+                if kc not in labelToCentroid:
+                    labelToCentroid[kc]=str(clf.predict(vectorizer.transform([kc]))[0])
+                kc_labels.append(labelToCentroid[kc])
 
             if not kc_labels:
                 continue

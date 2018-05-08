@@ -60,8 +60,8 @@ def read_datashop_student_step(step_file, model_id=None):
     joblib.dump(vectorizer, 'vectorizer.pkl')
     print("Finished saving vectorizer")
 
-    true_k = 80
-    model = MiniBatchKMeans(n_clusters=true_k, init='k-means++', max_iter=1000, n_init=1)
+    true_k = 100
+    model = MiniBatchKMeans(n_clusters=true_k, init='k-means++', max_iter=10000, n_init=1)
     model.fit(X)
     print("Finished saving k-means model")
     '''
