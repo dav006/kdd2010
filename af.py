@@ -32,6 +32,7 @@ def read_datashop_student_step(step_file, model_id=None):
 
     kcs = []
     opps = []
+    problemV =[]
     y = []
     stu = []
     student_label = []
@@ -44,6 +45,9 @@ def read_datashop_student_step(step_file, model_id=None):
 
         student = data[header['Anon Student Id']]
         pH = data[header['Problem Hierarchy']].split(",")
+        problemView = data[header['Problem View']]
+
+        problemV.append(problemView)
         
         for problemH in pH:
             key = student+problemH
@@ -84,35 +88,48 @@ def read_datashop_student_step(step_file, model_id=None):
 
         item = data[header['Problem Name']] + "##" + data[header['Step Name']]
         item_label.append(item)
-    print("Empty KCs : %d"%(emptyKCs))
 
-    return (kcs, opps, y, stu, student_label, item_label)
+    return (kcs, opps, y, stu, student_label, item_label, problemV)
 
 if __name__ == "__main__":
 
-    parser = argparse.ArgumentParser(description='Process datashop file.')
-    parser.add_argument('student_data', type=argparse.FileType('r'),
-                        help="the student data file in datashop format")
-    args = parser.parse_args()
+    file = 'algebra_2005_2006_train.txt'
+    ssr_file = open(file,'r')
 
-    ssr_file = args.student_data
-    kcs, opps, y, stu, student_label, item_label = read_datashop_student_step(ssr_file)
+    kcs, opps, y, stu, student_label, item_label, problemV = read_datashop_student_step(ssr_file)
+
+    ##Data set de validacion
+    file = 'algebra_2005_2006_master.txt'
+    ssr_file = open(file,'r')
+
+    kcsv, oppsv, yv, stuv, student_labelv, item_labelv, problemVv = read_datashop_student_step(ssr_file)
+
     print("Finished processing")
     sv = DictVectorizer(sparse=True)
     qv = DictVectorizer(sparse=True)
     ov = DictVectorizer(sparse=True)
 
-    S = sv.fit_transform(stu)
+    sv.fit(np.append(stu,stuv))
+    qv.fit(np.append(kcs,kcsv))
+    ov.fit(np.append(opps,oppsv))
+
+    S = sv.transform(stu)
     print("Number of students :%d"%(S.shape[1]))
-    Q = qv.fit_transform(kcs)
+    Q = qv.transform(kcs)
     print("Number of KCS :%d"%(Q.shape[1]))
-    O = ov.fit_transform(opps)
+    O = ov.transform(opps)
     max_abs_scaler = preprocessing.MaxAbsScaler()
     O = max_abs_scaler.fit_transform(O)
     print("Number of KCS operations :%d"%(O.shape[1]))
+
+    problemV = np.asarray(problemV)
+    problemV = problemV[:,np.newaxis]
+    max_abs_scaler = preprocessing.MaxAbsScaler()
+    PV = max_abs_scaler.fit_transform(problemV)
+
     print("Finished Fit Transform")
 
-    X = sparse.hstack((S,Q,O))
+    X = sparse.hstack((S,Q,O,PV))
     print("Finished hstack")
 
     y = np.array(y)
@@ -126,4 +143,30 @@ if __name__ == "__main__":
     train_pred = lr.predict(X)
     print("Training Correct :%2.2f"%(np.mean(train_pred == y) * 100))
     errorEntrenamiento = np.sqrt(mean_squared_error(y, train_pred))
-    print("RMSE :%0.4f" % (errorEntrenamiento))
+    print("Training RMSE :%0.4f" % (errorEntrenamiento))
+
+    print("Now processing validation data")    
+    SV = sv.transform(stuv)
+    QV = qv.transform(kcsv)
+    OV = ov.transform(oppsv)
+    max_abs_scaler = preprocessing.MaxAbsScaler()
+    OV = max_abs_scaler.fit_transform(OV)
+    print("Number of KCS operations :%d"%(OV.shape[1]))
+
+    problemV = np.asarray(problemVv)
+    problemV = problemV[:,np.newaxis]
+    max_abs_scaler = preprocessing.MaxAbsScaler()
+    PVV = max_abs_scaler.fit_transform(problemV)
+
+    print("Finished Fit Transform")
+
+    X = sparse.hstack((SV,QV,OV,PVV))
+    print("Finished hstack")
+
+    y = np.array(yv)
+
+    test_pred = lr.predict(X)
+    print("Test Correct :%2.2f"%(np.mean(test_pred == y) * 100))
+    errorVal = np.sqrt(mean_squared_error(y, test_pred))
+    print("Test RMSE :%0.4f" % (errorVal))
+
